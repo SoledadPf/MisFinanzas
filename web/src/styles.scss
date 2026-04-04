@@ -1,0 +1,140 @@
+@use '@angular/material' as mat;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+// ─── Dark Theme Variables ─────────────────────────────────────────────────────
+:root {
+  --bg-base:      #0d1117;
+  --bg-surface:   #161b27;
+  --bg-card:      #1a2234;
+  --bg-hover:     #1e2840;
+  --border:       rgba(255, 255, 255, 0.07);
+  --border-light: rgba(255, 255, 255, 0.12);
+
+  --text-primary:   #e8edf5;
+  --text-secondary: #8892a8;
+  --text-muted:     #4a5568;
+
+  --green:   #27AE60;
+  --green-2: #2ecc71;
+  --blue:    #3498db;
+  --orange:  #e67e22;
+  --red:     #e74c3c;
+  --purple:  #9b59b6;
+
+  --radius:   12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+// ─── Base ─────────────────────────────────────────────────────────────────────
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+// ─── Material Overrides ───────────────────────────────────────────────────────
+
+// Cards
+.mat-mdc-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+// Buttons
+.mat-mdc-raised-button.mat-primary {
+  --mdc-protected-button-container-color: var(--green);
+  --mdc-protected-button-label-text-color: #fff;
+  border-radius: var(--radius-sm) !important;
+}
+
+.mat-mdc-outlined-button.mat-primary {
+  --mdc-outlined-button-label-text-color: var(--green);
+  --mdc-outlined-button-outline-color: var(--green);
+  border-radius: var(--radius-sm) !important;
+}
+
+.mat-mdc-icon-button {
+  color: var(--text-secondary) !important;
+  &:hover { color: var(--text-primary) !important; }
+}
+
+// Form fields
+.mat-mdc-form-field {
+  .mdc-text-field {
+    background: var(--bg-surface) !important;
+    border-radius: var(--radius-sm) !important;
+  }
+  .mdc-text-field--outlined .mdc-notched-outline__leading,
+  .mdc-text-field--outlined .mdc-notched-outline__notch,
+  .mdc-text-field--outlined .mdc-notched-outline__trailing {
+    border-color: var(--border-light) !important;
+    border-radius: var(--radius-sm);
+  }
+  .mat-mdc-floating-label,
+  .mdc-floating-label { color: var(--text-secondary) !important; }
+  .mat-mdc-select-value,
+  input.mat-mdc-input-element { color: var(--text-primary) !important; }
+}
+
+// Select panel
+.mat-mdc-select-panel {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: var(--radius-sm) !important;
+}
+.mat-mdc-option {
+  color: var(--text-primary) !important;
+  &:hover { background: var(--bg-hover) !important; }
+}
+
+// Icons
+.mat-icon { color: inherit !important; }
+
+// Progress bar
+.mat-mdc-progress-bar {
+  --mdc-linear-progress-active-indicator-color: var(--green);
+  --mdc-linear-progress-track-color: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  height: 10px !important;
+}
+
+// Snackbar
+.mat-mdc-snack-bar-container {
+  border-radius: var(--radius-sm) !important;
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-light) !important;
+  .mat-mdc-button { color: var(--green) !important; }
+}
+
+// Menu
+.mat-mdc-menu-panel {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+}
+.mat-mdc-menu-item {
+  color: var(--text-primary) !important;
+  &:hover { background: var(--bg-hover) !important; }
+}
+
+// ─── Scrollbar ────────────────────────────────────────────────────────────────
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  &:hover { background: rgba(255,255,255,0.2); }
+}
+
+// ─── Selection ────────────────────────────────────────────────────────────────
+::selection { background: rgba(39, 174, 96, 0.25); }
