@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ExpensesService } from '../../core/services/expenses.service';
 import { PaymentsService } from '../../core/services/payments.service';
+import { WorkspacesService } from '../../core/services/workspaces.service';
 import { Expense, Payment } from '../../core/models/interfaces';
 
 const MONTHS_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -62,7 +63,7 @@ const MONTHS_FULL  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','
                               [class.overdue]="isOverdue(expense, $index + 1)"
                               (click)="togglePay(expense, $index + 1)">
                         @if (isPaid(expense.id, $index + 1)) {
-                          <mat-icon>check</mat-icon>
+                          <span class="paid-initial">{{ getPaidByInitial(expense.id, $index + 1) || '✓' }}</span>
                         } @else if (isOverdue(expense, $index + 1)) {
                           <span class="dot red-dot"></span>
                         } @else {
@@ -113,6 +114,7 @@ export class CalendarComponent implements OnInit {
   fixedExpenses: Expense[] = [];
   paymentsMap = new Map<string, Set<number>>();
   paymentIdMap = new Map<string, string>();
+  paymentPaidByMap = new Map<string, string>(); // 'expenseId-month' -> 'initial'
 
   progressPct = 0;
   paidAmount = 0;
@@ -123,10 +125,16 @@ export class CalendarComponent implements OnInit {
   constructor(
     private expensesService: ExpensesService,
     private paymentsService: PaymentsService,
+    public workspacesService: WorkspacesService,
     private snackBar: MatSnackBar,
   ) {}
 
-  ngOnInit() { this.loadData(); }
+  ngOnInit() { 
+    this.loadData();
+    
+    // Si cambia de workspace, recargar datos. Usamos effect() pero en zoneless el signal ya actualiza.
+    // Un método simple es suscribirse a los cambios del signal manualmente o depender de ellos en un computed.
+  }
 
   changeMonth(delta: number) {
     this.currentMonth += delta;
@@ -139,7 +147,6 @@ export class CalendarComponent implements OnInit {
       this.year--;
       this.loadData();
     } else {
-      // Solo actualizamos mes dentro del mismo año
       this.currentMonthName = MONTHS_FULL[this.currentMonth];
       this.calculateProgress();
     }
@@ -147,7 +154,8 @@ export class CalendarComponent implements OnInit {
 
   loadData() {
     this.currentMonthName = MONTHS_FULL[this.currentMonth];
-    this.expensesService.getAll('fixed').subscribe(expenses => {
+    const wsId = this.workspacesService.activeWorkspace()?.id;
+    this.expensesService.getAll('fixed', wsId).subscribe(expenses => {
       this.fixedExpenses = expenses;
       this.loadAllPayments();
       this.cdr.markForCheck();
@@ -157,13 +165,19 @@ export class CalendarComponent implements OnInit {
   loadAllPayments() {
     this.paymentsMap.clear();
     this.paymentIdMap.clear();
+    this.paymentPaidByMap.clear();
+
+    const wsId = this.workspacesService.activeWorkspace()?.id;
     let loaded = 0;
     for (let m = 1; m <= 12; m++) {
-      this.paymentsService.getByMonth(this.year, m).subscribe(payments => {
+      this.paymentsService.getByMonth(this.year, m, wsId).subscribe(payments => {
         payments.forEach(p => {
           if (!this.paymentsMap.has(p.expenseId)) this.paymentsMap.set(p.expenseId, new Set());
           this.paymentsMap.get(p.expenseId)!.add(p.month);
           this.paymentIdMap.set(`${p.expenseId}-${p.month}`, p.id);
+          if ((p as any).paidBy?.name) {
+            this.paymentPaidByMap.set(`${p.expenseId}-${p.month}`, (p as any).paidBy.name.charAt(0).toUpperCase());
+          }
         });
         loaded++;
         if (loaded === 12) {
@@ -176,6 +190,10 @@ export class CalendarComponent implements OnInit {
 
   isPaid(expenseId: string, month: number): boolean {
     return this.paymentsMap.get(expenseId)?.has(month) || false;
+  }
+
+  getPaidByInitial(expenseId: string, month: number): string {
+    return this.paymentPaidByMap.get(`${expenseId}-${month}`) || '';
   }
 
   isOverdue(expense: Expense, month: number): boolean {
@@ -193,6 +211,7 @@ export class CalendarComponent implements OnInit {
         this.paymentsService.delete(paymentId).subscribe(() => {
           this.paymentsMap.get(expense.id)?.delete(month);
           this.paymentIdMap.delete(`${expense.id}-${month}`);
+          this.paymentPaidByMap.delete(`${expense.id}-${month}`);
           this.calculateProgress();
           this.cdr.markForCheck();
           this.snackBar.open('Pago desmarcado', 'OK', { duration: 1500 });
@@ -208,6 +227,13 @@ export class CalendarComponent implements OnInit {
         if (!this.paymentsMap.has(expense.id)) this.paymentsMap.set(expense.id, new Set());
         this.paymentsMap.get(expense.id)!.add(month);
         this.paymentIdMap.set(`${expense.id}-${month}`, payment.id);
+        
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const initial = JSON.parse(userStr).name.charAt(0).toUpperCase();
+          this.paymentPaidByMap.set(`${expense.id}-${month}`, initial);
+        }
+
         this.calculateProgress();
         this.cdr.markForCheck();
         this.snackBar.open('Marcado como pagado', 'OK', { duration: 1500 });

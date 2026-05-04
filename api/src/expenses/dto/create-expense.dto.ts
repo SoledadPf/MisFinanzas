@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsEnum, IsOptional, IsInt, Min, Max, IsUUID, IsDateString } from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsOptional, IsInt, Min, Max, IsUUID, IsDateString, ValidateIf } from 'class-validator';
 
 export class CreateExpenseDto {
   @IsString()
@@ -8,7 +8,7 @@ export class CreateExpenseDto {
   @Min(0.01, { message: 'El monto debe ser mayor a 0' })
   amount: number;
 
-  @IsUUID()
+  @IsString()
   categoryId: string;
 
   @IsEnum(['fixed', 'variable'], { message: 'El tipo debe ser "fixed" o "variable"' })
@@ -27,4 +27,16 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ValidateIf((o) => o.workspaceId !== null && o.workspaceId !== undefined)
+  @IsString()
+  workspaceId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  splitType?: string; // 'INDIVIDUAL' | 'EQUAL'
+
+  @ValidateIf((o) => o.assignedUserId !== null && o.assignedUserId !== undefined)
+  @IsString()
+  assignedUserId?: string | null;
 }

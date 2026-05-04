@@ -230,6 +230,16 @@
 
   mat-icon { font-size: 18px; width: 18px; height: 18px; }
   &:hover { background: rgba(231,76,60,0.1); color: #e74c3c; border-color: rgba(231,76,60,0.2); }
+
+  &.edit-btn {
+    &:hover { background: rgba(99,102,241,0.12); color: #818cf8; border-color: rgba(99,102,241,0.25); }
+  }
+}
+
+.action-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .empty-section {

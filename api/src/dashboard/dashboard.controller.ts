@@ -14,11 +14,13 @@ export class DashboardController {
     @Request() req,
     @Query('year') year: string,
     @Query('month') month: string,
+    @Query('workspaceId') workspaceId?: string,
   ) {
     return this.dashboardService.getSummary(
       req.user.userId,
       parseInt(year),
       parseInt(month),
+      workspaceId,
     );
   }
 
@@ -27,17 +29,23 @@ export class DashboardController {
     @Request() req,
     @Query('year') year: string,
     @Query('month') month: string,
+    @Query('workspaceId') workspaceId?: string,
   ) {
     return this.dashboardService.getByCategory(
       req.user.userId,
       parseInt(year),
       parseInt(month),
+      workspaceId,
     );
   }
 
   @Get('trend')
-  getTrend(@Request() req, @Query('year') year: string) {
-    return this.dashboardService.getTrend(req.user.userId, parseInt(year));
+  getTrend(
+    @Request() req, 
+    @Query('year') year: string,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    return this.dashboardService.getTrend(req.user.userId, parseInt(year), workspaceId);
   }
 
   @Get('upcoming')
@@ -45,11 +53,13 @@ export class DashboardController {
     @Request() req,
     @Query('year') year: string,
     @Query('month') month: string,
+    @Query('workspaceId') workspaceId?: string,
   ) {
     return this.dashboardService.getUpcomingPayments(
       req.user.userId,
       parseInt(year),
       parseInt(month),
+      workspaceId,
     );
   }
 }

@@ -10,10 +10,12 @@ export class PaymentsService {
 
   constructor(private http: HttpClient) {}
 
-  getByMonth(year: number, month: number): Observable<Payment[]> {
-    const params = new HttpParams()
+  getByMonth(year: number, month: number, workspaceId?: string): Observable<Payment[]> {
+    let params = new HttpParams()
       .set('year', year.toString())
       .set('month', month.toString());
+    if (workspaceId) params = params.set('workspaceId', workspaceId);
+
     return this.http.get<Payment[]>(this.api, { params });
   }
 

@@ -13,12 +13,12 @@ export class DashboardService {
     private paymentsRepo: Repository<Payment>,
   ) {}
 
-  async getSummary(userId: string, year: number, month: number) {
+  async getSummary(userId: string, year: number, month: number, workspaceId?: string) {
     // Total gastos fijos
     const fixedExpenses = await this.expensesRepo
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'total')
-      .where('e.user_id = :userId', { userId })
+      .where(workspaceId ? 'e.workspace_id = :workspaceId' : 'e.user_id = :userId', { userId, workspaceId })
       .andWhere('e.type = :type', { type: 'fixed' })
       .andWhere('e.is_active = 1')
       .getRawOne();
@@ -27,7 +27,7 @@ export class DashboardService {
     const variableExpenses = await this.expensesRepo
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'total')
-      .where('e.user_id = :userId', { userId })
+      .where(workspaceId ? 'e.workspace_id = :workspaceId' : 'e.user_id = :userId', { userId, workspaceId })
       .andWhere('e.type = :type', { type: 'variable' })
       .andWhere('e.is_active = 1')
       .andWhere('MONTH(e.date) = :month', { month })
@@ -39,7 +39,7 @@ export class DashboardService {
       .createQueryBuilder('p')
       .innerJoin('p.expense', 'e')
       .select('COALESCE(SUM(p.amount_paid), 0)', 'total')
-      .where('e.user_id = :userId', { userId })
+      .where(workspaceId ? 'e.workspace_id = :workspaceId' : 'e.user_id = :userId', { userId, workspaceId })
       .andWhere('p.year = :year', { year })
       .andWhere('p.month = :month', { month })
       .getRawOne();
@@ -59,7 +59,7 @@ export class DashboardService {
     };
   }
 
-  async getByCategory(userId: string, year: number, month: number) {
+  async getByCategory(userId: string, year: number, month: number, workspaceId?: string) {
     const result = await this.expensesRepo
       .createQueryBuilder('e')
       .innerJoin('e.category', 'c')
@@ -68,7 +68,7 @@ export class DashboardService {
       .addSelect('c.icon', 'icon')
       .addSelect('c.color', 'color')
       .addSelect('SUM(e.amount)', 'total')
-      .where('e.user_id = :userId', { userId })
+      .where(workspaceId ? 'e.workspace_id = :workspaceId' : 'e.user_id = :userId', { userId, workspaceId })
       .andWhere('e.is_active = 1')
       .groupBy('c.id')
       .addGroupBy('c.name')
@@ -83,12 +83,12 @@ export class DashboardService {
     }));
   }
 
-  async getTrend(userId: string, year: number) {
+  async getTrend(userId: string, year: number, workspaceId?: string) {
     // Gastos fijos (mismo monto cada mes)
     const fixedTotal = await this.expensesRepo
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'total')
-      .where('e.user_id = :userId', { userId })
+      .where(workspaceId ? 'e.workspace_id = :workspaceId' : 'e.user_id = :userId', { userId, workspaceId })
       .andWhere('e.type = :type', { type: 'fixed' })
       .andWhere('e.is_active = 1')
       .getRawOne();
@@ -100,7 +100,7 @@ export class DashboardService {
       .createQueryBuilder('e')
       .select('MONTH(e.date)', 'month')
       .addSelect('SUM(e.amount)', 'total')
-      .where('e.user_id = :userId', { userId })
+      .where(workspaceId ? 'e.workspace_id = :workspaceId' : 'e.user_id = :userId', { userId, workspaceId })
       .andWhere('e.type = :type', { type: 'variable' })
       .andWhere('e.is_active = 1')
       .andWhere('YEAR(e.date) = :year', { year })
@@ -129,10 +129,12 @@ export class DashboardService {
     });
   }
 
-  async getUpcomingPayments(userId: string, year: number, month: number) {
+  async getUpcomingPayments(userId: string, year: number, month: number, workspaceId?: string) {
     // Gastos fijos que NO tienen pago este mes
     const allFixed = await this.expensesRepo.find({
-      where: { userId, type: 'fixed', isActive: true },
+      where: workspaceId 
+        ? { workspaceId, type: 'fixed', isActive: true }
+        : { userId, type: 'fixed', isActive: true },
       relations: ['category'],
       order: { dueDay: 'ASC' },
     });
@@ -141,21 +143,29 @@ export class DashboardService {
       .createQueryBuilder('p')
       .innerJoin('p.expense', 'e')
       .select('p.expense_id', 'expenseId')
-      .where('e.user_id = :userId', { userId })
+      .addSelect('SUM(p.amount_paid)', 'totalPaid')
+      .where(workspaceId ? 'e.workspace_id = :workspaceId' : 'e.user_id = :userId', { userId, workspaceId })
       .andWhere('p.year = :year', { year })
       .andWhere('p.month = :month', { month })
+      .groupBy('p.expense_id')
       .getRawMany();
 
-    const paidIds = new Set(paidThisMonth.map((p) => p.expenseId));
+    const paidMap = new Map<string, number>();
+    paidThisMonth.forEach((p) => paidMap.set(p.expenseId, parseFloat(p.totalPaid) || 0));
 
     return allFixed
-      .filter((e) => !paidIds.has(e.id))
-      .map((e) => ({
-        id: e.id,
-        name: e.name,
-        amount: e.amount,
-        dueDay: e.dueDay,
-        category: e.category,
-      }));
+      .map((e) => {
+        const paid = paidMap.get(e.id) || 0;
+        const amount = Number(e.amount);
+        return {
+          id: e.id,
+          name: e.name,
+          amount: amount,
+          remaining: amount - paid,
+          dueDay: e.dueDay,
+          category: e.category,
+        };
+      })
+      .filter((e) => e.remaining > 0);
   }
 }

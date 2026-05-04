@@ -25,11 +25,13 @@ export class PaymentsController {
     @Request() req,
     @Query('year') year: string,
     @Query('month') month: string,
+    @Query('workspaceId') workspaceId?: string,
   ) {
     return this.paymentsService.findByMonth(
       req.user.userId,
       parseInt(year),
       parseInt(month),
+      workspaceId,
     );
   }
 

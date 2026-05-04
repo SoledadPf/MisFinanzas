@@ -20,6 +20,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/auth/forgot-password/forgot-password.component').then((m) => m.ForgotPasswordComponent),
   },
+  {
+    path: 'join',
+    loadComponent: () =>
+      import('./features/join/join.component').then((m) => m.JoinComponent),
+  },
 
   // Páginas protegidas con navbar (layout wrapper)
   {
@@ -52,6 +57,11 @@ export const routes: Routes = [
         path: 'calendar',
         loadComponent: () =>
           import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
+      },
+      {
+        path: 'balances',
+        loadComponent: () =>
+          import('./features/balances/balances.component').then((m) => m.BalancesComponent),
       },
     ],
   },
