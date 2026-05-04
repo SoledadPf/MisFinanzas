@@ -1,10 +1,14 @@
-import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration } from 'chart.js';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { DashboardSummary, CategoryBreakdown, MonthlyTrend, UpcomingPayment } from '../../core/models/interfaces';
 import { PaymentsService } from '../../core/services/payments.service';
+import { WorkspacesService } from '../../core/services/workspaces.service';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { PaymentModalComponent } from '../../shared/components/payment-modal/payment-modal.component';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 
 const MONTHS_FULL = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -15,7 +19,7 @@ const MONTHS_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective],
+  imports: [CommonModule, BaseChartDirective, MatDialogModule, MatSnackBarModule],
   template: `
     <div class="dashboard">
       <!-- Month selector -->
@@ -131,8 +135,15 @@ const MONTHS_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct
                 </div>
               </div>
               <div class="upcoming-right">
-                <span class="upcoming-amount">S/ {{ item.amount | number:'1.2-2' }}</span>
-                <button class="pay-btn" (click)="markPaid(item)">Marcar pagado</button>
+                @if (item.remaining < item.amount) {
+                   <div style="text-align: right; margin-right: 10px;">
+                     <span class="upcoming-amount">Falta S/ {{ item.remaining | number:'1.2-2' }}</span><br/>
+                     <span style="font-size: 0.75rem; color: #a0aec0;">De S/ {{ item.amount | number:'1.2-2' }}</span>
+                   </div>
+                } @else {
+                   <span class="upcoming-amount" style="margin-right: 15px;">S/ {{ item.amount | number:'1.2-2' }}</span>
+                }
+                <button class="pay-btn" (click)="markPaid(item)">Pagar</button>
               </div>
             </div>
           }
@@ -193,9 +204,20 @@ export class DashboardComponent implements OnInit {
   constructor(
     private dashboardService: DashboardService,
     private paymentsService: PaymentsService,
-  ) {}
+    public workspacesService: WorkspacesService,
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
+  ) {
+    effect(() => {
+      // Registrar dependencia del active workspace
+      const ws = this.workspacesService.activeWorkspace();
+      this.loadData();
+    });
+  }
 
-  ngOnInit() { this.loadData(); }
+  ngOnInit() { 
+    // loadData ya es llamado por el effect() inicial.
+  }
 
   changeMonth(delta: number) {
     this.month += delta;
@@ -206,13 +228,16 @@ export class DashboardComponent implements OnInit {
 
   loadData() {
     this.monthName = MONTHS_FULL[this.month - 1];
+    
+    const ws = this.workspacesService.activeWorkspace();
+    const workspaceId = ws ? ws.id : undefined;
 
-    this.dashboardService.getSummary(this.year, this.month).subscribe(data => {
+    this.dashboardService.getSummary(this.year, this.month, workspaceId).subscribe(data => {
       this.summary = data;
       this.cdr.markForCheck();
     });
 
-    this.dashboardService.getByCategory(this.year, this.month).subscribe(data => {
+    this.dashboardService.getByCategory(this.year, this.month, workspaceId).subscribe(data => {
       this.categoryData = data;
       this.pieChartData = {
         labels: data.map(d => d.categoryName),
@@ -225,7 +250,7 @@ export class DashboardComponent implements OnInit {
       this.cdr.markForCheck();
     });
 
-    this.dashboardService.getTrend(this.year).subscribe(data => {
+    this.dashboardService.getTrend(this.year, workspaceId).subscribe(data => {
       this.trendData = data;
       this.lineChartData = {
         labels: data.map(d => d.name),
@@ -253,7 +278,7 @@ export class DashboardComponent implements OnInit {
       this.cdr.markForCheck();
     });
 
-    this.dashboardService.getUpcoming(this.year, this.month).subscribe(data => {
+    this.dashboardService.getUpcoming(this.year, this.month, workspaceId).subscribe(data => {
       this.upcoming = data;
       this.cdr.markForCheck();
     });

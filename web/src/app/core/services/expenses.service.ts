@@ -10,9 +10,10 @@ export class ExpensesService {
 
   constructor(private http: HttpClient) {}
 
-  getAll(type?: string): Observable<Expense[]> {
+  getAll(type?: string, workspaceId?: string): Observable<Expense[]> {
     let params = new HttpParams();
     if (type) params = params.set('type', type);
+    if (workspaceId) params = params.set('workspaceId', workspaceId);
     return this.http.get<Expense[]>(this.api, { params });
   }
 

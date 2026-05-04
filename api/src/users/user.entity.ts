@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Expense } from '../expenses/expense.entity';
 import { Category } from '../categories/category.entity';
+import { UserWorkspace } from '../workspaces/user-workspace.entity';
 
 @Entity('users')
 export class User {
@@ -36,4 +37,7 @@ export class User {
 
   @Column({ type: 'datetime', nullable: true, name: 'reset_token_expires' })
   resetPasswordExpires: Date | null;
+
+  @OneToMany(() => UserWorkspace, (userWorkspace) => userWorkspace.user)
+  userWorkspaces: UserWorkspace[];
 }

@@ -23,8 +23,12 @@ export class ExpensesController {
   constructor(private expensesService: ExpensesService) {}
 
   @Get()
-  findAll(@Request() req, @Query('type') type?: string) {
-    return this.expensesService.findAll(req.user.userId, type);
+  findAll(
+    @Request() req,
+    @Query('type') type?: string,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    return this.expensesService.findAll(req.user.userId, type, workspaceId);
   }
 
   @Get(':id')

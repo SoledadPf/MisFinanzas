@@ -34,6 +34,9 @@ export interface Category {
 export interface Expense {
   id: string;
   userId: string;
+  workspaceId?: string;
+  splitType: string;
+  assignedUserId?: string;
   categoryId: string;
   name: string;
   amount: number;
@@ -52,6 +55,9 @@ export interface CreateExpenseRequest {
   amount: number;
   categoryId: string;
   type: 'fixed' | 'variable';
+  workspaceId?: string | null;
+  splitType?: string;
+  assignedUserId?: string | null;
   dueDay?: number;
   date?: string;
   notes?: string;
@@ -63,6 +69,7 @@ export interface UpdateExpenseRequest extends Partial<CreateExpenseRequest> {}
 export interface Payment {
   id: string;
   expenseId: string;
+  paidById?: string;
   year: number;
   month: number;
   paidAt: string | null;
@@ -108,6 +115,7 @@ export interface UpcomingPayment {
   id: string;
   name: string;
   amount: number;
+  remaining: number;
   dueDay: number;
   category: Category;
 }

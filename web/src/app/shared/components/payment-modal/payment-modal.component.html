@@ -1,0 +1,40 @@
+<h2 mat-dialog-title>Registrar Pago</h2>
+<mat-dialog-content>
+  <p class="summary">Gastos: <strong>{{ data.expenseName }}</strong></p>
+  <div class="amounts-info">
+    <div class="info-box">
+      <span class="label">Total del Gasto</span>
+      <span class="value">S/ {{ data.amountTotal | number:'1.2-2' }}</span>
+    </div>
+    <div class="info-box remaining">
+      <span class="label">Falta Pagar</span>
+      <span class="value">S/ {{ data.amountRemaining | number:'1.2-2' }}</span>
+    </div>
+  </div>
+
+  <div class="payment-options">
+    <button class="pay-total-btn" (click)="payTotalRemaining()">
+      <div class="icon-circle"><i class="material-icons">check_circle</i></div>
+      <div class="btn-text">
+        <span class="btn-title">Pagar todo el faltante</span>
+        <span class="btn-sub">Monto: S/ {{ data.amountRemaining | number:'1.2-2' }}</span>
+      </div>
+    </button>
+
+    <div class="divider">
+      <span>O ingresa un monto personalizado (ej. tu mitad)</span>
+    </div>
+
+    <div class="custom-amount-input">
+      <span class="currency">S/</span>
+      <input type="number" [(ngModel)]="customAmount" placeholder="0.00" step="0.10" min="0.1" [max]="data.amountRemaining">
+    </div>
+    @if (errorMessage) {
+      <div class="error-warn">{{ errorMessage }}</div>
+    }
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button class="cancel-btn" (click)="cancel()">Cancelar</button>
+  <button class="confirm-btn" (click)="confirmCustomAmount()">Confirmar Pago Parcial</button>
+</mat-dialog-actions>

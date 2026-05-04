@@ -7,6 +7,9 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ExpensesService } from '../../../core/services/expenses.service';
 import { CategoriesService } from '../../../core/services/categories.service';
+import { WorkspacesService } from '../../../core/services/workspaces.service';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../../environments/environment';
 import { Category, CreateExpenseRequest } from '../../../core/models/interfaces';
 
 @Component({
@@ -35,6 +38,50 @@ import { Category, CreateExpenseRequest } from '../../../core/models/interfaces'
                      placeholder="Ej: Netflix, Pasajes, Almuerzo">
             </div>
           </div>
+
+          <!-- GRUPO -->
+          <div class="field-group">
+            <label class="field-label" for="workspaceId">Grupo</label>
+            <div class="input-wrap select-wrap">
+              <mat-icon class="field-icon">group</mat-icon>
+              <select id="workspaceId" [(ngModel)]="formWorkspaceId" name="workspaceId" (ngModelChange)="onWorkspaceChange($event)">
+                <option value="">Sin grupo (Personal)</option>
+                @for (uw of workspacesService.workspaces(); track uw.workspaceId) {
+                  <option [value]="uw.workspaceId">{{ uw.workspace.name }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <!-- REGLA DE DIVISIÓN — solo si hay grupo seleccionado -->
+          @if (formWorkspaceId && groupMembers().length > 0) {
+            <div class="field-group">
+              <label class="field-label">¿A quién le corresponde pagar esto?</label>
+              <div class="type-toggle split-toggle">
+                <button type="button" class="type-btn" [class.active]="formSplitType === 'INDIVIDUAL' && formAssignedUserId === meId"
+                        (click)="setSplitType('INDIVIDUAL', meId)">
+                  <mat-icon>person</mat-icon>
+                  Mío
+                </button>
+                <button type="button" class="type-btn" [class.active]="formSplitType === 'EQUAL'"
+                        (click)="setSplitType('EQUAL', '')">
+                  <mat-icon>people</mat-icon>
+                  Compartido 50/50
+                </button>
+              </div>
+              <div class="type-toggle split-toggle" style="margin-top: 8px;">
+                @for (member of groupMembers(); track member.id) {
+                  @if (member.id !== meId) {
+                    <button type="button" class="type-btn" [class.active]="formSplitType === 'INDIVIDUAL' && formAssignedUserId === member.id"
+                            (click)="setSplitType('INDIVIDUAL', member.id)">
+                      <mat-icon>person_outline</mat-icon>
+                      De {{ member.name.split(' ')[0] }}
+                    </button>
+                  }
+                }
+              </div>
+            </div>
+          }
 
           <!-- Monto -->
           <div class="field-group">
@@ -150,6 +197,14 @@ export class ExpenseFormComponent implements OnInit {
   formDueDay = 1;
   formDate = '';
   formNotes = '';
+  formWorkspaceId = ''; // '' = Personal (sin grupo)
+
+  // Campos compartidos
+  formSplitType: 'INDIVIDUAL' | 'EQUAL' = 'INDIVIDUAL';
+  formAssignedUserId = '';
+  meId = '';
+  
+  groupMembers = signal<any[]>([]);
 
   isEditing = false;
   editId = '';
@@ -159,6 +214,8 @@ export class ExpenseFormComponent implements OnInit {
   constructor(
     private expensesService: ExpensesService,
     private categoriesService: CategoriesService,
+    public workspacesService: WorkspacesService,
+    private http: HttpClient,
     private snackBar: MatSnackBar,
     public router: Router,
     private route: ActivatedRoute,
@@ -168,11 +225,30 @@ export class ExpenseFormComponent implements OnInit {
     // Set default date to today
     this.formDate = new Date().toISOString().split('T')[0];
 
-    // Load categories — use setTimeout to avoid ExpressionChangedAfterChecked in zoneless
+    // Leer usuario logueado
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      this.meId = JSON.parse(userStr).id;
+      this.formAssignedUserId = this.meId;
+    }
+
+    // Load categories
     this.categoriesService.getAll().subscribe(cats => {
       this.categories.set(cats);
       this.cdr.markForCheck();
     });
+
+    // Preseleccionar el workspace activo en nuevos gastos
+    const ws = this.workspacesService.activeWorkspace();
+    if (ws && !this.route.snapshot.paramMap.get('id')) {
+      this.formWorkspaceId = ws.id;
+      this.loadMembersForWorkspace(ws.id);
+    }
+
+    // Cargar workspaces si no están cargados
+    if (this.workspacesService.workspaces().length === 0) {
+      this.workspacesService.loadWorkspaces().subscribe();
+    }
 
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
@@ -185,6 +261,15 @@ export class ExpenseFormComponent implements OnInit {
         this.formType       = expense.type as 'fixed' | 'variable';
         this.formDueDay     = expense.dueDay || 1;
         this.formNotes      = expense.notes || '';
+        this.formSplitType  = (expense as any).splitType || 'INDIVIDUAL';
+        this.formAssignedUserId = (expense as any).assignedUserId || this.meId;
+        this.formWorkspaceId = (expense as any).workspaceId || '';
+
+        // Si tiene grupo, cargar sus miembros
+        if (this.formWorkspaceId) {
+          this.loadMembersForWorkspace(this.formWorkspaceId);
+        }
+
         if (expense.date) {
           this.formDate = expense.date.split('T')[0];
         }
@@ -193,8 +278,30 @@ export class ExpenseFormComponent implements OnInit {
     }
   }
 
+  loadMembersForWorkspace(workspaceId: string) {
+    this.http.get<any[]>(`${environment.apiUrl}/workspaces/${workspaceId}/members`).subscribe(m => {
+      this.groupMembers.set(m);
+      this.cdr.markForCheck();
+    });
+  }
+
+  onWorkspaceChange(workspaceId: string) {
+    this.formWorkspaceId = workspaceId;
+    this.groupMembers.set([]);
+    this.formSplitType = 'INDIVIDUAL';
+    this.formAssignedUserId = this.meId;
+    if (workspaceId) {
+      this.loadMembersForWorkspace(workspaceId);
+    }
+  }
+
   setType(type: 'fixed' | 'variable') {
     this.formType = type;
+  }
+
+  setSplitType(splitType: 'INDIVIDUAL' | 'EQUAL', assignedUserId: string) {
+    this.formSplitType = splitType;
+    this.formAssignedUserId = assignedUserId;
   }
 
   onSubmit() {
@@ -212,6 +319,9 @@ export class ExpenseFormComponent implements OnInit {
       categoryId: this.formCategoryId,
       type:       this.formType,
       notes:      this.formNotes,
+      workspaceId: this.formWorkspaceId || null,
+      splitType:   this.formWorkspaceId ? this.formSplitType : 'INDIVIDUAL',
+      assignedUserId: this.formWorkspaceId ? this.formAssignedUserId : this.meId,
     };
 
     if (this.formType === 'fixed') {
